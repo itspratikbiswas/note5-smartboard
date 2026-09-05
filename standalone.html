@@ -1,0 +1,1987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Note5 - Smart Board Interactive Canvas 2.0</title>
+  
+  <!-- Tailwind CSS & Lucide Icons -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    }
+
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Outfit', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            chalkboard: {
+              green: '#1e3f20',
+              darkgreen: '#142c16',
+              black: '#121316',
+              navy: '#0f172a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      touch-action: none;
+      user-select: none;
+      -webkit-user-select: none;
+      background-color: #0f172a;
+    }
+
+    .chalkboard-bg {
+      background-color: #1e3f20;
+      background-image: 
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.03) 0%, transparent 60%),
+        radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.02) 0%, transparent 40%),
+        radial-gradient(circle at 80% 80%, rgba(0, 0, 0, 0.25) 0%, transparent 50%);
+    }
+
+    .chalkboard-grid {
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.09) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.09) 1px, transparent 1px);
+      background-size: 40px 40px;
+    }
+
+    .chalkboard-isometric {
+      background-image:
+        radial-gradient(circle, rgba(255, 255, 255, 0.22) 1.5px, transparent 1.5px);
+      background-size: 32px 32px;
+    }
+
+    .chalkboard-lined {
+      background-image: 
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.14) 1px, transparent 1px);
+      background-size: 100% 44px;
+    }
+
+    .chalkboard-cornell {
+      background-image: 
+        linear-gradient(to right, transparent 220px, rgba(255, 255, 255, 0.2) 220px, rgba(255, 255, 255, 0.2) 222px, transparent 222px),
+        linear-gradient(to top, rgba(255, 255, 255, 0.2) 120px, transparent 120px);
+    }
+
+    .chalkboard-music {
+      background-image: 
+        repeating-linear-gradient(to bottom, rgba(255, 255, 255, 0.18) 0px, rgba(255, 255, 255, 0.18) 1.5px, transparent 1.5px, transparent 12px, rgba(255, 255, 255, 0.18) 12px, rgba(255, 255, 255, 0.18) 13.5px, transparent 13.5px, transparent 24px, rgba(255, 255, 255, 0.18) 24px, rgba(255, 255, 255, 0.18) 25.5px, transparent 25.5px, transparent 36px, rgba(255, 255, 255, 0.18) 36px, rgba(255, 255, 255, 0.18) 37.5px, transparent 37.5px, transparent 48px, rgba(255, 255, 255, 0.18) 48px, rgba(255, 255, 255, 0.18) 49.5px, transparent 49.5px, transparent 100px);
+    }
+
+    .chalkboard-black {
+      background-color: #121316;
+      background-image: 
+        radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.02) 0%, transparent 70%);
+    }
+
+    .chalkboard-white {
+      background-color: #f8fafc;
+      background-image: 
+        radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0.02) 0%, transparent 70%);
+    }
+
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 16px 36px -8px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+    }
+
+    .touch-btn {
+      min-width: 48px;
+      min-height: 48px;
+      transition: all 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .touch-btn:active {
+      transform: scale(0.93);
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.2);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden font-sans">
+
+  <!-- ================= TOP HEADER ================= -->
+  <header class="fixed top-3 left-4 right-4 z-20 flex items-center justify-between pointer-events-none select-none">
+    <div class="flex items-center gap-2 pointer-events-auto">
+      <div class="glass-panel px-3.5 py-2 rounded-2xl flex items-center gap-3 shadow-lg">
+        <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-sky-500 to-emerald-500 flex items-center justify-center font-black text-white text-sm shadow-md">
+          N5
+        </div>
+        <span id="session-title" class="text-sm font-bold text-slate-200 cursor-pointer hover:text-white transition-colors" title="Click to Rename">
+          Physics & Math Lecture Notes
+        </span>
+      </div>
+
+      <!-- Templates & Background Colors Button -->
+      <button id="btn-open-templates" class="glass-panel px-3.5 py-2.5 rounded-2xl flex items-center gap-2 text-slate-300 hover:text-white hover:bg-white/10 text-xs font-semibold shadow-lg transition-all">
+        <i data-lucide="palette" class="w-4 h-4 text-emerald-400"></i>
+        <span class="hidden md:inline">Themes & Backgrounds</span>
+      </button>
+
+      <!-- AI Math Formulas Button -->
+      <button id="btn-open-formulas" class="glass-panel px-3.5 py-2.5 rounded-2xl flex items-center gap-2 text-slate-300 hover:text-white hover:bg-white/10 text-xs font-semibold shadow-lg transition-all">
+        <i data-lucide="sparkles" class="w-4 h-4 text-purple-400"></i>
+        <span class="hidden lg:inline">AI Formulas</span>
+      </button>
+    </div>
+
+    <!-- Multi-Page Navigator Pill -->
+    <div class="pointer-events-auto">
+      <div class="glass-panel px-2.5 py-1.5 rounded-2xl flex items-center gap-1.5 shadow-xl">
+        <button id="btn-prev-page" title="Previous Slide" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all">
+          <i data-lucide="chevron-left" class="w-4 h-4"></i>
+        </button>
+        <button id="btn-toggle-filmstrip" title="Toggle Slide Filmstrip" class="px-3 py-1 bg-white/5 hover:bg-white/10 rounded-xl text-xs font-bold text-sky-300 tracking-wide flex items-center gap-1.5">
+          <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
+          <span id="page-indicator">Page 1 / 1</span>
+        </button>
+        <button id="btn-next-page" title="Next Slide" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all">
+          <i data-lucide="chevron-right" class="w-4 h-4"></i>
+        </button>
+        <div class="w-[1px] h-5 bg-white/10 mx-0.5"></div>
+        <button id="btn-add-page" title="Add New Board Page" class="p-2 rounded-xl bg-sky-600/70 hover:bg-sky-500 text-white transition-all">
+          <i data-lucide="plus" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Export & Fullscreen -->
+    <div class="flex items-center gap-2 pointer-events-auto">
+      <button id="btn-open-export" class="glass-panel px-3.5 py-2.5 rounded-2xl flex items-center gap-2 bg-gradient-to-r from-emerald-600/80 to-teal-600/80 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold text-xs shadow-lg transition-all">
+        <i data-lucide="download" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">Export PDF</span>
+      </button>
+      <button id="btn-fullscreen" title="Toggle Fullscreen" class="glass-panel p-2.5 rounded-2xl text-slate-300 hover:text-white hover:bg-white/10 shadow-lg transition-all">
+        <i data-lucide="maximize" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= MAIN CANVAS CONTAINER ================= -->
+  <main id="canvas-container" class="relative w-full h-full overflow-hidden select-none chalkboard-bg">
+    <canvas id="main-canvas" class="absolute inset-0 block pointer-events-none z-0"></canvas>
+    <canvas id="overlay-canvas" class="absolute inset-0 block pointer-events-none z-10"></canvas>
+    <canvas id="laser-canvas" class="absolute inset-0 block pointer-events-none z-20"></canvas>
+    <div id="interaction-layer" class="absolute inset-0 z-10 touch-none cursor-crosshair"></div>
+    <div id="sticky-notes-container" class="absolute inset-0 pointer-events-none z-20"></div>
+  </main>
+
+  <!-- ================= INTERACTIVE MATH TOOLS ================= -->
+  <div id="math-tool-layer" class="absolute inset-0 pointer-events-none z-30 overflow-hidden">
+    <!-- Virtual Ruler -->
+    <div id="virtual-ruler" class="hidden absolute pointer-events-auto rounded-lg shadow-2xl border border-sky-400/40 bg-slate-900/85 backdrop-blur-md select-none touch-none flex flex-col justify-between p-1.5" style="left: 250px; top: 220px; width: 500px; height: 84px;">
+      <div class="w-full h-8 relative flex items-start border-b border-sky-500/30" id="ruler-cm-ticks"></div>
+      <div class="flex items-center justify-between px-3">
+        <div id="ruler-drag-handle" class="flex items-center gap-2 cursor-grab active:cursor-grabbing px-3 py-1 bg-sky-500/20 hover:bg-sky-500/30 rounded-md border border-sky-400/30 text-sky-200 text-xs font-semibold">
+          <i data-lucide="move" class="w-3.5 h-3.5"></i>
+          <span>30 cm Scale</span>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <button id="ruler-close-btn" class="p-1.5 bg-red-500/30 hover:bg-red-500/60 text-red-200 rounded-md">
+            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+      <div class="w-full h-4 relative flex items-end border-t border-sky-500/30" id="ruler-in-ticks"></div>
+    </div>
+
+    <!-- Virtual Protractor -->
+    <div id="virtual-protractor" class="hidden absolute pointer-events-auto rounded-full shadow-2xl border-2 border-emerald-400/50 bg-slate-900/85 backdrop-blur-md select-none touch-none" style="left: 450px; top: 350px; width: 360px; height: 360px;">
+      <svg id="protractor-svg" class="w-full h-full absolute inset-0" viewBox="0 0 360 360"></svg>
+      <div id="protractor-drag-handle" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center justify-center p-2 rounded-xl bg-slate-800/90 border border-emerald-500/40 cursor-grab active:cursor-grabbing text-emerald-200">
+        <i data-lucide="move" class="w-3.5 h-3.5 mb-1"></i>
+        <span class="text-xs font-bold text-amber-300 font-mono">Protractor</span>
+      </div>
+      <div class="absolute top-3 right-3 flex items-center gap-1">
+        <button id="protractor-close-btn" class="p-1 bg-red-500/30 hover:bg-red-500/60 text-red-200 rounded-md">
+          <i data-lucide="x" class="w-3 h-3"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= CLASSROOM COUNTDOWN TIMER / STOPWATCH ================= -->
+  <div id="classroom-timer" class="hidden fixed top-20 right-8 z-40 pointer-events-auto rounded-2xl shadow-2xl border border-sky-400/40 bg-slate-900/90 backdrop-blur-md p-3.5 w-64 select-none touch-none flex flex-col gap-2.5">
+    <div id="timer-drag-handle" class="flex items-center justify-between cursor-grab active:cursor-grabbing pb-1.5 border-b border-white/10">
+      <div class="flex items-center gap-1.5 text-xs font-bold text-sky-300">
+        <i data-lucide="clock" class="w-3.5 h-3.5"></i>
+        <span>Classroom Timer</span>
+      </div>
+      <button id="btn-close-timer" class="p-1 text-slate-400 hover:text-white rounded hover:bg-white/10">
+        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+      </button>
+    </div>
+    <div class="flex flex-col items-center justify-center py-2 bg-slate-950/60 rounded-xl border border-white/5">
+      <span id="timer-display" class="text-4xl font-mono font-black tracking-wider text-amber-300">05:00</span>
+    </div>
+    <div class="flex items-center justify-between gap-1">
+      <button data-mins="1" class="timer-preset-btn flex-1 py-1 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200">1m</button>
+      <button data-mins="3" class="timer-preset-btn flex-1 py-1 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200">3m</button>
+      <button data-mins="5" class="timer-preset-btn flex-1 py-1 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200">5m</button>
+      <button data-mins="10" class="timer-preset-btn flex-1 py-1 rounded-lg text-[10px] font-bold bg-slate-800 hover:bg-slate-700 text-slate-200">10m</button>
+    </div>
+    <div class="flex items-center gap-2 pt-1">
+      <button id="btn-start-timer" class="flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white shadow-md">
+        <i data-lucide="play" class="w-3.5 h-3.5"></i>
+        <span>Start</span>
+      </button>
+      <button id="btn-reset-timer" class="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-white/10">
+        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- ================= FLOATING DOCKABLE TOOLBAR ================= -->
+  <nav id="floating-toolbar" class="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 pointer-events-auto select-none transition-all">
+    <!-- Shapes Menu Popup -->
+    <div id="shapes-popup" class="hidden absolute bottom-full mb-3 left-1/2 -translate-x-1/2 glass-panel p-2.5 rounded-2xl flex items-center gap-1.5 shadow-2xl">
+      <button data-shape="line" title="Straight Line" class="shape-btn touch-btn p-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 flex items-center justify-center">
+        <i data-lucide="minus" class="w-5 h-5"></i>
+      </button>
+      <button data-shape="arrow" title="Arrow Vector" class="shape-btn touch-btn p-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 flex items-center justify-center">
+        <i data-lucide="arrow-right" class="w-5 h-5"></i>
+      </button>
+      <button data-shape="rectangle" title="Rectangle" class="shape-btn touch-btn p-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 flex items-center justify-center">
+        <i data-lucide="square" class="w-5 h-5"></i>
+      </button>
+      <button data-shape="circle" title="Circle / Ellipse" class="shape-btn touch-btn p-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 flex items-center justify-center">
+        <i data-lucide="circle" class="w-5 h-5"></i>
+      </button>
+      <button data-shape="triangle" title="Triangle" class="shape-btn touch-btn p-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 flex items-center justify-center">
+        <i data-lucide="triangle" class="w-5 h-5"></i>
+      </button>
+      <button data-shape="cube" title="3D Cube" class="shape-btn touch-btn p-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 flex items-center justify-center">
+        <i data-lucide="box" class="w-5 h-5"></i>
+      </button>
+      <button data-shape="coordinate-axes" title="2D Graph Axes" class="shape-btn touch-btn p-3 rounded-xl text-slate-300 hover:text-white hover:bg-white/10 flex items-center justify-center">
+        <i data-lucide="grid" class="w-5 h-5"></i>
+      </button>
+    </div>
+
+    <!-- Quick Color & Stroke Popup (with 14+ colors & custom color picker) -->
+    <div id="color-popup" class="hidden absolute bottom-full mb-3 left-1/2 -translate-x-1/2 glass-panel p-4 rounded-2xl flex flex-col gap-3 shadow-2xl min-w-[340px]">
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs font-bold text-sky-400 uppercase tracking-wider">Chalk Colors</span>
+          <button id="btn-open-pen-styles-link" class="text-[11px] text-sky-300 hover:underline flex items-center gap-1 font-semibold">
+            <i data-lucide="sliders" class="w-3 h-3"></i> Pen Styles
+          </button>
+        </div>
+        <div class="grid grid-cols-8 gap-2" id="quick-color-grid">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+      <div class="flex items-center justify-between pt-2 border-t border-white/10">
+        <span class="text-xs font-semibold text-slate-400">Thickness</span>
+        <div class="flex items-center gap-1.5">
+          <button data-width="2" class="width-btn px-2 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 flex items-center gap-1">
+            <div class="w-1.5 h-1.5 rounded-full bg-white"></div>
+            <span>Fine</span>
+          </button>
+          <button data-width="6" class="width-btn px-2 py-1 rounded-lg text-xs font-bold text-white bg-white/20 border border-white/30 flex items-center gap-1">
+            <div class="w-2.5 h-2.5 rounded-full bg-white"></div>
+            <span>Med</span>
+          </button>
+          <button data-width="12" class="width-btn px-2 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 flex items-center gap-1">
+            <div class="w-3.5 h-3.5 rounded-full bg-white"></div>
+            <span>Bold</span>
+          </button>
+          <button data-width="24" class="width-btn px-2 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-white hover:bg-white/5 flex items-center gap-1">
+            <div class="w-4.5 h-4.5 rounded-full bg-white"></div>
+            <span>Ultra</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Toolbar Dock Panel -->
+    <div class="glass-panel p-2 rounded-2xl flex items-center gap-1.5 shadow-2xl">
+      <div class="flex items-center gap-0.5 pr-1.5 border-r border-white/10">
+        <button id="btn-undo" title="Undo (Ctrl+Z)" class="touch-btn p-3 rounded-xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10">
+          <i data-lucide="undo-2" class="w-5 h-5"></i>
+        </button>
+        <button id="btn-redo" title="Redo (Ctrl+Y)" class="touch-btn p-3 rounded-xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10">
+          <i data-lucide="redo-2" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Chalk / Pen Tool -->
+      <button id="tool-pen" title="Drawing Pen (P)" class="tool-btn touch-btn p-3 rounded-xl flex items-center justify-center bg-sky-500 text-white shadow-lg shadow-sky-500/30">
+        <i data-lucide="pen-tool" class="w-5 h-5"></i>
+      </button>
+
+      <!-- Pen Style / Brush Profile Selector Trigger -->
+      <button id="btn-open-pen-styles" title="Pen Styles & Inking Dynamics (Chalk, Calligraphy, Highlighter, Dotted)" class="touch-btn p-3 rounded-xl flex items-center justify-center text-sky-400 hover:text-sky-300 hover:bg-sky-500/10 border border-sky-400/20">
+        <i data-lucide="sliders" class="w-5 h-5"></i>
+      </button>
+
+      <!-- Highlighter Tool -->
+      <button id="tool-highlighter" title="Highlighter (H)" class="tool-btn touch-btn p-3 rounded-xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10">
+        <i data-lucide="highlighter" class="w-5 h-5"></i>
+      </button>
+
+      <!-- Laser Pointer -->
+      <button id="tool-laser" title="Presenter Laser Pointer (L)" class="tool-btn touch-btn p-3 rounded-xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10">
+        <i data-lucide="sparkles" class="w-5 h-5"></i>
+      </button>
+
+      <!-- Color Palette Button -->
+      <button id="btn-palette" title="Color & Stroke Width" class="touch-btn p-3 rounded-xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10">
+        <div id="active-color-dot" class="w-5 h-5 rounded-full bg-white border-2 border-white/80 shadow-sm"></div>
+      </button>
+
+      <!-- Geometric Shapes Button -->
+      <button id="btn-shapes" title="2D & 3D Shapes" class="touch-btn p-3 rounded-xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10">
+        <i data-lucide="square" class="w-5 h-5"></i>
+      </button>
+
+      <!-- Eraser Tool -->
+      <button id="tool-eraser" title="Smart Eraser (E)" class="tool-btn touch-btn p-3 rounded-xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10">
+        <i data-lucide="eraser" class="w-5 h-5"></i>
+      </button>
+
+      <div class="h-6 w-[1px] bg-white/10 mx-1"></div>
+
+      <!-- Sticky Note Button -->
+      <button id="btn-add-note" title="Add Sticky Note Card" class="touch-btn p-3 rounded-xl flex items-center justify-center text-amber-300 hover:text-amber-200 hover:bg-amber-500/20">
+        <i data-lucide="sticky-note" class="w-5 h-5"></i>
+      </button>
+
+      <!-- Timer Widget Button -->
+      <button id="btn-toggle-timer-widget" title="Classroom Timer / Stopwatch" class="touch-btn p-3 rounded-xl flex items-center justify-center text-sky-300 hover:text-sky-200 hover:bg-sky-500/20">
+        <i data-lucide="clock" class="w-5 h-5"></i>
+      </button>
+
+      <!-- STEM Drawer Button -->
+      <button id="btn-open-stem" title="Academic STEM Drawers" class="touch-btn px-3.5 py-3 rounded-xl flex items-center gap-2 bg-gradient-to-r from-sky-600/70 to-indigo-600/70 hover:from-sky-500 hover:to-indigo-500 text-white font-semibold text-xs shadow-md border border-white/15">
+        <i data-lucide="layers" class="w-4 h-4"></i>
+        <span class="hidden sm:inline">STEM Drawers</span>
+      </button>
+
+      <!-- Clear Board -->
+      <button id="btn-clear-board" title="Clear Active Board" class="touch-btn p-3 rounded-xl flex items-center justify-center text-red-400 hover:text-red-300 hover:bg-red-500/20">
+        <i data-lucide="trash-2" class="w-5 h-5"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- ================= PEN STYLES & INKING PROFILES MODAL ================= -->
+  <div id="pen-styles-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-4">
+    <div class="glass-panel w-full max-w-xl rounded-3xl overflow-hidden border border-white/20 shadow-2xl flex flex-col">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-900/70">
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 text-white shadow-lg">
+            <i data-lucide="sliders" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-white tracking-wide">Brush Profiles & Inking Parameters</h2>
+            <p class="text-xs text-slate-400">Configure stroke dynamics, pen styles, opacity, and line dash patterns</p>
+          </div>
+        </div>
+        <button id="btn-close-pen-styles" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-5 max-h-[75vh] overflow-y-auto">
+        <!-- 1. Brush Profiles -->
+        <div>
+          <label class="text-xs font-bold text-sky-400 uppercase tracking-wider block mb-2.5">
+            Inking Profile
+          </label>
+          <div class="grid grid-cols-2 gap-2.5" id="brush-profiles-grid">
+            <button data-profile="chalk" class="profile-btn p-3 rounded-2xl border text-left flex items-start gap-2.5 bg-sky-500/20 border-sky-400 ring-2 ring-sky-400/30">
+              <div class="p-2 rounded-xl bg-slate-800 text-emerald-400 shrink-0"><i data-lucide="pen-tool" class="w-4 h-4"></i></div>
+              <div>
+                <h4 class="text-xs font-bold text-white">Classroom Chalk</h4>
+                <p class="text-[10px] text-slate-400 leading-tight mt-0.5">Textured blackboard chalk stroke</p>
+              </div>
+            </button>
+            <button data-profile="calligraphy" class="profile-btn p-3 rounded-2xl border text-left flex items-start gap-2.5 bg-slate-800/40 border-white/10 hover:bg-slate-800">
+              <div class="p-2 rounded-xl bg-slate-800 text-sky-400 shrink-0"><i data-lucide="feather" class="w-4 h-4"></i></div>
+              <div>
+                <h4 class="text-xs font-bold text-white">Calligraphy Pen</h4>
+                <p class="text-[10px] text-slate-400 leading-tight mt-0.5">Velocity & pressure dynamic inking</p>
+              </div>
+            </button>
+            <button data-profile="highlighter" class="profile-btn p-3 rounded-2xl border text-left flex items-start gap-2.5 bg-slate-800/40 border-white/10 hover:bg-slate-800">
+              <div class="p-2 rounded-xl bg-slate-800 text-amber-400 shrink-0"><i data-lucide="highlighter" class="w-4 h-4"></i></div>
+              <div>
+                <h4 class="text-xs font-bold text-white">Highlighter</h4>
+                <p class="text-[10px] text-slate-400 leading-tight mt-0.5">Translucent text marker</p>
+              </div>
+            </button>
+            <button data-profile="smart-shape" class="profile-btn p-3 rounded-2xl border text-left flex items-start gap-2.5 bg-slate-800/40 border-white/10 hover:bg-slate-800">
+              <div class="p-2 rounded-xl bg-slate-800 text-purple-400 shrink-0"><i data-lucide="wand-2" class="w-4 h-4"></i></div>
+              <div>
+                <h4 class="text-xs font-bold text-white">Smart Shape Assistant</h4>
+                <p class="text-[10px] text-slate-400 leading-tight mt-0.5">Auto-snaps hand loops to shapes</p>
+              </div>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. Academic Color Swatches & Custom Picker -->
+        <div>
+          <label class="text-xs font-bold text-sky-400 uppercase tracking-wider block mb-2.5">
+            Color Palette & Custom Picker
+          </label>
+          <div class="p-3 bg-slate-900/60 rounded-2xl border border-white/10 flex flex-wrap items-center gap-2.5" id="modal-color-swatches">
+            <!-- Injected by JS -->
+          </div>
+        </div>
+
+        <!-- 3. Sliders: Opacity & Thickness -->
+        <div class="grid grid-cols-2 gap-4">
+          <div class="p-3.5 rounded-2xl bg-slate-900/60 border border-white/10 space-y-2">
+            <div class="flex items-center justify-between text-xs font-bold text-slate-300">
+              <span>Stroke Opacity</span>
+              <span id="label-opacity" class="font-mono text-sky-400">100%</span>
+            </div>
+            <input id="slider-opacity" type="range" min="0.1" max="1.0" step="0.05" value="1.0" class="w-full accent-sky-400 cursor-pointer">
+          </div>
+          <div class="p-3.5 rounded-2xl bg-slate-900/60 border border-white/10 space-y-2">
+            <div class="flex items-center justify-between text-xs font-bold text-slate-300">
+              <span>Brush Thickness</span>
+              <span id="label-thickness" class="font-mono text-sky-400">6px</span>
+            </div>
+            <input id="slider-thickness" type="range" min="1" max="36" step="1" value="6" class="w-full accent-sky-400 cursor-pointer">
+          </div>
+        </div>
+
+        <!-- 4. Line Dash Style -->
+        <div>
+          <label class="text-xs font-bold text-sky-400 uppercase tracking-wider block mb-2">
+            Line Pattern (Dash & Dots)
+          </label>
+          <div class="grid grid-cols-3 gap-2">
+            <button data-dash="solid" class="dash-btn py-2.5 rounded-xl text-xs font-bold bg-sky-600 text-white border border-sky-400 shadow-md">Solid Line</button>
+            <button data-dash="dashed" class="dash-btn py-2.5 rounded-xl text-xs font-semibold bg-slate-800/60 text-slate-300 border border-white/10 hover:text-white">Dashed</button>
+            <button data-dash="dotted" class="dash-btn py-2.5 rounded-xl text-xs font-semibold bg-slate-800/60 text-slate-300 border border-white/10 hover:text-white">Dotted</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-6 py-3.5 border-t border-white/10 bg-slate-950/70 flex items-center justify-end">
+        <button id="btn-apply-pen-styles" class="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-600/30">
+          Apply & Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= THEMES, BACKGROUND COLORS & PDF MODAL ================= -->
+  <div id="templates-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-4">
+    <div class="glass-panel w-full max-w-2xl rounded-3xl overflow-hidden border border-white/20 shadow-2xl flex flex-col">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-900/70">
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-600 text-white shadow-lg">
+            <i data-lucide="palette" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-white tracking-wide">Board Colors, Grid Overlays & PDF Slides</h2>
+            <p class="text-xs text-slate-400">Change chalkboard tones, grid overlays, or import lesson slides</p>
+          </div>
+        </div>
+        <button id="btn-close-templates" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="flex items-center gap-2 px-6 pt-3 pb-2 border-b border-white/5 bg-slate-950/40">
+        <button id="tab-btn-bg" class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 text-white shadow-lg shadow-emerald-500/25">
+          <i data-lucide="grid" class="w-4 h-4"></i>
+          <span>Backgrounds & Grids</span>
+        </button>
+        <button id="tab-btn-pdf" class="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-white/5">
+          <i data-lucide="file-up" class="w-4 h-4"></i>
+          <span>PDF Slide Ingestion</span>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+        <!-- Background Tab Content -->
+        <div id="tab-view-bg" class="space-y-6">
+          <!-- 1. Solid Board Colors -->
+          <div>
+            <label class="text-xs font-bold text-emerald-400 uppercase tracking-wider block mb-3">
+              1. Board Background Color
+            </label>
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5" id="board-colors-grid">
+              <!-- Injected by JS -->
+            </div>
+
+            <!-- Custom Color Wheel for Background -->
+            <div class="mt-3 flex items-center gap-3 p-3 rounded-2xl bg-slate-900/60 border border-white/10">
+              <label class="relative w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-400 via-rose-500 to-indigo-500 border-2 border-white/40 cursor-pointer flex items-center justify-center shrink-0 shadow-lg">
+                <input type="color" id="custom-bg-picker" value="#1e3f20" class="opacity-0 absolute inset-0 cursor-pointer w-full h-full">
+                <i data-lucide="pipette" class="w-4 h-4 text-white"></i>
+              </label>
+              <div class="flex-1">
+                <h5 class="text-xs font-bold text-white">Custom Background Hue</h5>
+                <p class="text-[11px] text-slate-400">Click to pick any custom hexadecimal color for this board</p>
+              </div>
+              <span id="label-custom-bg" class="font-mono text-xs font-bold text-emerald-300 px-2.5 py-1 bg-slate-800 rounded-lg border border-white/10">#1e3f20</span>
+            </div>
+          </div>
+
+          <!-- 2. Academic Grid Patterns -->
+          <div>
+            <label class="text-xs font-bold text-emerald-400 uppercase tracking-wider block mb-3">
+              2. Pattern & Grid Overlay
+            </label>
+            <div class="grid grid-cols-2 gap-3" id="board-patterns-grid">
+              <!-- Injected by JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- PDF Ingestion Tab Content -->
+        <div id="tab-view-pdf" class="hidden space-y-4">
+          <div class="p-6 rounded-3xl border-2 border-dashed border-sky-400/40 bg-slate-900/50 hover:bg-sky-500/5 hover:border-sky-400 transition-all flex flex-col items-center justify-center text-center">
+            <div class="p-3 rounded-2xl bg-sky-500/20 text-sky-400 mb-2 shadow-lg">
+              <i data-lucide="file-up" class="w-7 h-7"></i>
+            </div>
+            <h3 class="text-sm font-bold text-white">Import PDF Lecture Slides</h3>
+            <p class="text-xs text-slate-400 max-w-sm mt-1 mb-4">
+              Upload PDF slides to bind them as background canvases for live drawing.
+            </p>
+            <label class="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg cursor-pointer flex items-center gap-2">
+              <i data-lucide="file-up" class="w-4 h-4"></i>
+              <span>Choose PDF File</span>
+              <input type="file" id="pdf-file-input" accept=".pdf" class="hidden">
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="px-6 py-3.5 border-t border-white/10 bg-slate-950/70 flex items-center justify-end">
+        <button id="btn-apply-templates" class="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-600/30">
+          Apply & Close
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= AI FORMULAS MODAL ================= -->
+  <div id="formulas-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-4">
+    <div class="glass-panel w-full max-w-xl rounded-3xl overflow-hidden border border-white/20 shadow-2xl flex flex-col">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-900/70">
+        <div class="flex items-center gap-2.5">
+          <div class="p-2.5 rounded-xl bg-gradient-to-tr from-purple-500 to-indigo-600 text-white shadow-lg">
+            <i data-lucide="sparkles" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-white">AI Math & Formula Typesetting</h2>
+            <p class="text-xs text-slate-400">Insert formulas onto active canvas</p>
+          </div>
+        </div>
+        <button id="btn-close-formulas" class="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/10">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-3 max-h-[70vh] overflow-y-auto">
+        <div class="formula-card p-3.5 rounded-2xl bg-slate-800/50 border border-white/10 flex items-center justify-between">
+          <div>
+            <span class="text-xs font-bold text-purple-300">Fundamental Theorem of Calculus</span>
+            <div class="font-mono font-bold text-white mt-1">∫[a,b] f(x)dx = F(b) - F(a)</div>
+          </div>
+          <button data-latex="∫[a,b] f(x)dx = F(b) - F(a)" data-name="Calculus Theorem" class="btn-insert-form px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold">Insert</button>
+        </div>
+        <div class="formula-card p-3.5 rounded-2xl bg-slate-800/50 border border-white/10 flex items-center justify-between">
+          <div>
+            <span class="text-xs font-bold text-purple-300">Schrödinger Wave Equation</span>
+            <div class="font-mono font-bold text-white mt-1">iℏ ∂Ψ/∂t = ĤΨ</div>
+          </div>
+          <button data-latex="iℏ ∂Ψ/∂t = ĤΨ" data-name="Quantum Mechanics" class="btn-insert-form px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold">Insert</button>
+        </div>
+        <div class="formula-card p-3.5 rounded-2xl bg-slate-800/50 border border-white/10 flex items-center justify-between">
+          <div>
+            <span class="text-xs font-bold text-purple-300">Mass-Energy Equivalence</span>
+            <div class="font-mono font-bold text-white mt-1">E = mc²</div>
+          </div>
+          <button data-latex="E = mc²" data-name="Relativity" class="btn-insert-form px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold">Insert</button>
+        </div>
+        <div class="formula-card p-3.5 rounded-2xl bg-slate-800/50 border border-white/10 flex items-center justify-between">
+          <div>
+            <span class="text-xs font-bold text-purple-300">Ideal Gas Law</span>
+            <div class="font-mono font-bold text-white mt-1">PV = nRT</div>
+          </div>
+          <button data-latex="PV = nRT" data-name="Thermodynamics" class="btn-insert-form px-3.5 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold">Insert</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= STEM SUBJECT DRAWER MODAL ================= -->
+  <div id="stem-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+    <div class="glass-panel w-full max-w-4xl max-h-[85vh] rounded-2xl flex flex-col overflow-hidden border border-white/15 shadow-2xl">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-900/60">
+        <div class="flex items-center gap-3">
+          <div class="p-2.5 rounded-xl bg-gradient-to-tr from-sky-500 to-indigo-600 text-white shadow-lg">
+            <i data-lucide="layers" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-lg font-bold text-white tracking-wide">Academic STEM Resource Drawer</h2>
+            <p class="text-xs text-slate-400">Interactive Math Instruments & Science Laboratory Apparatus</p>
+          </div>
+        </div>
+        <button id="btn-close-stem" class="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="flex items-center gap-2 px-6 pt-3 pb-2 border-b border-white/5 bg-slate-950/40">
+        <button data-tab="math" class="stem-tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold bg-sky-500 text-white shadow-lg">
+          <i data-lucide="compass" class="w-4 h-4"></i>
+          <span>Mathematics & Geometry</span>
+        </button>
+        <button data-tab="chem" class="stem-tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-400 hover:text-white hover:bg-white/5">
+          <i data-lucide="beaker" class="w-4 h-4"></i>
+          <span>Chemistry Apparatus</span>
+        </button>
+        <button data-tab="phys" class="stem-tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-400 hover:text-white hover:bg-white/5">
+          <i data-lucide="zap" class="w-4 h-4"></i>
+          <span>Physics & Optics</span>
+        </button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto p-6 space-y-6" id="stem-tab-content">
+        <div id="tab-content-math" class="space-y-6">
+          <h3 class="text-sm font-bold text-sky-400 uppercase tracking-wider">On-Screen Interactive Drafting Tools</h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="p-4 rounded-xl bg-slate-800/60 border border-sky-500/20 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="p-3 rounded-lg bg-sky-500/20 text-sky-400">
+                  <i data-lucide="ruler" class="w-6 h-6"></i>
+                </div>
+                <div>
+                  <h4 class="text-sm font-bold text-white">30cm / 12" Virtual Ruler</h4>
+                  <p class="text-xs text-slate-400">Movable measurement scale</p>
+                </div>
+              </div>
+              <button id="btn-launch-ruler" class="px-4 py-2 rounded-lg text-xs font-semibold bg-sky-600 hover:bg-sky-500 text-white shadow-md">
+                Launch Ruler
+              </button>
+            </div>
+
+            <div class="p-4 rounded-xl bg-slate-800/60 border border-emerald-500/20 flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <div class="p-3 rounded-lg bg-emerald-500/20 text-emerald-400">
+                  <i data-lucide="compass" class="w-6 h-6"></i>
+                </div>
+                <div>
+                  <h4 class="text-sm font-bold text-white">360° Angle Protractor</h4>
+                  <p class="text-xs text-slate-400">Degree finder & dial</p>
+                </div>
+              </div>
+              <button id="btn-launch-protractor" class="px-4 py-2 rounded-lg text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white shadow-md">
+                Launch Protractor
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div id="tab-content-chem" class="hidden space-y-6">
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4" id="chem-apparatus-grid"></div>
+        </div>
+
+        <div id="tab-content-phys" class="hidden space-y-6">
+          <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4" id="phys-apparatus-grid"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= EXPORT DIALOG MODAL ================= -->
+  <div id="export-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/65 backdrop-blur-sm p-4">
+    <div class="glass-panel w-full max-w-lg rounded-3xl overflow-hidden border border-white/20 shadow-2xl flex flex-col">
+      <div class="flex items-center justify-between px-6 py-4 border-b border-white/10 bg-slate-900/60">
+        <div class="flex items-center gap-2.5">
+          <div class="p-2.5 rounded-xl bg-gradient-to-tr from-emerald-500 to-teal-500 text-white shadow-lg">
+            <i data-lucide="download" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h2 class="text-base font-bold text-white">Export Whiteboard Document</h2>
+            <p class="text-xs text-slate-400">Save full resolution PDF or HD image</p>
+          </div>
+        </div>
+        <button id="btn-close-export" class="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-white/10">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="p-6 space-y-3.5">
+        <button id="btn-do-export-pdf" class="w-full p-4 rounded-2xl bg-slate-800/60 hover:bg-slate-800 border border-emerald-500/30 hover:border-emerald-500 text-left flex items-center gap-4 transition-all">
+          <div class="p-3 rounded-xl bg-emerald-500/20 text-emerald-400">
+            <i data-lucide="file-text" class="w-6 h-6"></i>
+          </div>
+          <div class="flex-1">
+            <h4 class="text-sm font-bold text-white">Multi-Page Lecture PDF</h4>
+            <p class="text-xs text-slate-400">Compile all board slides into a print-ready vector PDF document</p>
+          </div>
+        </button>
+
+        <button id="btn-do-export-png" class="w-full p-4 rounded-2xl bg-slate-800/60 hover:bg-slate-800 border border-sky-500/30 hover:border-sky-500 text-left flex items-center gap-4 transition-all">
+          <div class="p-3 rounded-xl bg-sky-500/20 text-sky-400">
+            <i data-lucide="image" class="w-6 h-6"></i>
+          </div>
+          <div class="flex-1">
+            <h4 class="text-sm font-bold text-white">High-Resolution PNG Image</h4>
+            <p class="text-xs text-slate-400">Export active whiteboard slide as crystal-clear PNG</p>
+          </div>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= JAVASCRIPT LOGIC ENGINE ================= -->
+  <script>
+    // Complete 14+ Academic Chalk Colors
+    const CHALK_PALETTE = [
+      { name: 'Pure White', hex: '#ffffff', bg: 'bg-white' },
+      { name: 'Chalk Yellow', hex: '#fef08a', bg: 'bg-yellow-200' },
+      { name: 'Sky Blue', hex: '#38bdf8', bg: 'bg-sky-400' },
+      { name: 'Neon Green', hex: '#4ade80', bg: 'bg-green-400' },
+      { name: 'Coral Red', hex: '#f87171', bg: 'bg-red-400' },
+      { name: 'Vivid Violet', hex: '#c084fc', bg: 'bg-purple-400' },
+      { name: 'Solar Orange', hex: '#fb923c', bg: 'bg-orange-400' },
+      { name: 'Rose Pink', hex: '#f472b6', bg: 'bg-pink-400' },
+      { name: 'Cyan Aqua', hex: '#22d3ee', bg: 'bg-cyan-400' },
+      { name: 'Warm Gold', hex: '#facc15', bg: 'bg-yellow-400' },
+      { name: 'Mint Green', hex: '#6ee7b7', bg: 'bg-emerald-300' },
+      { name: 'Lavender', hex: '#a78bfa', bg: 'bg-violet-400' },
+      { name: 'Crimson', hex: '#e11d48', bg: 'bg-rose-600' },
+      { name: 'Slate Gray', hex: '#94a3b8', bg: 'bg-slate-400' },
+    ];
+
+    const BOARD_COLORS = [
+      { id: 'chalkboard-bg', name: 'Chalkboard Green', hex: '#1e3f20', bgClass: 'chalkboard-bg' },
+      { id: 'chalkboard-black', name: 'Obsidian Black', hex: '#121316', bgClass: 'chalkboard-black' },
+      { id: 'chalkboard-navy', name: 'Oxford Navy', hex: '#0f172a', bgClass: 'bg-[#0f172a]' },
+      { id: 'chalkboard-slate', name: 'Charcoal Slate', hex: '#1e293b', bgClass: 'bg-[#1e293b]' },
+      { id: 'chalkboard-white', name: 'Clean Whiteboard', hex: '#f8fafc', bgClass: 'chalkboard-white' },
+      { id: 'chalkboard-parchment', name: 'Warm Parchment', hex: '#fef3c7', bgClass: 'bg-[#fef3c7]' },
+      { id: 'chalkboard-crimson', name: 'Crimson Slate', hex: '#450a0a', bgClass: 'bg-[#450a0a]' },
+      { id: 'chalkboard-royal', name: 'Royal Blue', hex: '#172554', bgClass: 'bg-[#172554]' }
+    ];
+
+    const CANVAS_PATTERNS = [
+      { id: '', name: 'Clean Solid', icon: '⬛', description: 'No grid lines' },
+      { id: 'chalkboard-grid', name: '40px Coordinate Grid', icon: '📐', description: 'Standard math & geometry grid' },
+      { id: 'chalkboard-isometric', name: 'Isometric 3D Dot Grid', icon: '⚄', description: '3D vector drafting' },
+      { id: 'chalkboard-lined', name: 'Ruled Notebook Lines', icon: '📝', description: 'Linear lecture notes' },
+      { id: 'chalkboard-cornell', name: 'Cornell Note-Taking', icon: '📑', description: 'Cue column and summary' },
+      { id: 'chalkboard-music', name: 'Musical Staves', icon: '🎵', description: '5-line musical staves' }
+    ];
+
+    // State
+    let activeTool = 'pen'; // 'pen', 'highlighter', 'laser', 'eraser', 'shape'
+    let activeBrushProfile = 'chalk'; // 'chalk', 'calligraphy', 'highlighter', 'smart-shape'
+    let strokeColor = '#ffffff';
+    let strokeWidth = 6;
+    let strokeOpacity = 1.0;
+    let brushDash = 'solid'; // 'solid', 'dashed', 'dotted'
+    let activeShape = 'rectangle';
+    let activePageIndex = 0;
+    let customBgColor = '';
+
+    let pages = [
+      { 
+        id: 'page-1', 
+        theme: 'chalkboard-bg', 
+        customBgColor: '',
+        pdfBg: null, 
+        strokes: [], 
+        shapes: [], 
+        stemObjects: [], 
+        stickyNotes: [] 
+      }
+    ];
+
+    let historyStack = [[]];
+    let historyStep = 0;
+
+    const container = document.getElementById('canvas-container');
+    const mainCanvas = document.getElementById('main-canvas');
+    const overlayCanvas = document.getElementById('overlay-canvas');
+    const laserCanvas = document.getElementById('laser-canvas');
+    const interactionLayer = document.getElementById('interaction-layer');
+    const stickyContainer = document.getElementById('sticky-notes-container');
+
+    const mainCtx = mainCanvas.getContext('2d');
+    const overlayCtx = overlayCanvas.getContext('2d');
+    const laserCtx = laserCanvas.getContext('2d');
+
+    let isDrawing = false;
+    let currentPoints = [];
+    let shapeStart = null;
+    let laserParticles = [];
+
+    // Populate Quick Color Grid in Toolbar
+    const quickColorGrid = document.getElementById('quick-color-grid');
+    CHALK_PALETTE.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = `color-swatch w-7 h-7 rounded-full border-2 transition-transform ${c.hex === strokeColor ? 'scale-125 border-white shadow-lg ring-2 ring-sky-400' : 'border-transparent hover:scale-110'} ${c.bg}`;
+      btn.title = c.name;
+      btn.addEventListener('click', () => {
+        setStrokeColor(c.hex);
+      });
+      quickColorGrid.appendChild(btn);
+    });
+
+    // Custom Color Picker input in Toolbar
+    const customQuickColor = document.createElement('label');
+    customQuickColor.className = "relative w-7 h-7 rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-indigo-500 border-2 border-white/40 cursor-pointer flex items-center justify-center hover:scale-110 shadow-md";
+    customQuickColor.title = "Custom Color Wheel";
+    customQuickColor.innerHTML = `<input type="color" value="${strokeColor}" class="opacity-0 absolute inset-0 cursor-pointer w-full h-full">`;
+    customQuickColor.querySelector('input').addEventListener('input', (e) => {
+      setStrokeColor(e.target.value);
+    });
+    quickColorGrid.appendChild(customQuickColor);
+
+    // Populate Modal Color Swatches
+    const modalColorGrid = document.getElementById('modal-color-swatches');
+    CHALK_PALETTE.forEach(c => {
+      const btn = document.createElement('button');
+      btn.className = `modal-swatch w-8 h-8 rounded-full border-2 transition-transform ${c.hex === strokeColor ? 'scale-125 border-white shadow-lg ring-2 ring-sky-400' : 'border-transparent hover:scale-110'} ${c.bg}`;
+      btn.title = c.name;
+      btn.addEventListener('click', () => {
+        setStrokeColor(c.hex);
+      });
+      modalColorGrid.appendChild(btn);
+    });
+
+    const customModalColor = document.createElement('label');
+    customModalColor.className = "relative w-8 h-8 rounded-full bg-gradient-to-tr from-amber-400 via-rose-500 to-indigo-500 border-2 border-white/40 cursor-pointer flex items-center justify-center hover:scale-110 shadow-md";
+    customModalColor.title = "Custom Color Wheel";
+    customModalColor.innerHTML = `<input type="color" value="${strokeColor}" class="opacity-0 absolute inset-0 cursor-pointer w-full h-full">`;
+    customModalColor.querySelector('input').addEventListener('input', (e) => {
+      setStrokeColor(e.target.value);
+    });
+    modalColorGrid.appendChild(customModalColor);
+
+    function setStrokeColor(hex) {
+      strokeColor = hex;
+      document.getElementById('active-color-dot').style.backgroundColor = hex;
+      document.querySelectorAll('.color-swatch').forEach((b, idx) => {
+        if (idx < CHALK_PALETTE.length) {
+          b.className = `color-swatch w-7 h-7 rounded-full border-2 transition-transform ${CHALK_PALETTE[idx].hex.toLowerCase() === hex.toLowerCase() ? 'scale-125 border-white shadow-lg ring-2 ring-sky-400' : 'border-transparent hover:scale-110'} ${CHALK_PALETTE[idx].bg}`;
+        }
+      });
+      document.querySelectorAll('.modal-swatch').forEach((b, idx) => {
+        if (idx < CHALK_PALETTE.length) {
+          b.className = `modal-swatch w-8 h-8 rounded-full border-2 transition-transform ${CHALK_PALETTE[idx].hex.toLowerCase() === hex.toLowerCase() ? 'scale-125 border-white shadow-lg ring-2 ring-sky-400' : 'border-transparent hover:scale-110'} ${CHALK_PALETTE[idx].bg}`;
+        }
+      });
+    }
+
+    // Populate Board Colors in Theme Modal
+    const boardColorsGrid = document.getElementById('board-colors-grid');
+    BOARD_COLORS.forEach(bColor => {
+      const btn = document.createElement('button');
+      btn.className = `board-color-btn p-3 rounded-2xl border text-left flex items-center gap-2.5 transition-all bg-slate-800/40 border-white/10 hover:bg-slate-800`;
+      btn.innerHTML = `
+        <div style="background-color: ${bColor.hex}" class="w-6 h-6 rounded-lg border border-white/30 shadow shrink-0"></div>
+        <div class="flex-1 min-w-0">
+          <div class="text-xs font-bold text-white truncate">${bColor.name}</div>
+          <div class="text-[10px] text-slate-400 font-mono">${bColor.hex}</div>
+        </div>
+      `;
+      btn.addEventListener('click', () => {
+        setBoardBackground(bColor.hex, bColor.bgClass);
+      });
+      boardColorsGrid.appendChild(btn);
+    });
+
+    // Populate Board Patterns in Theme Modal
+    const boardPatternsGrid = document.getElementById('board-patterns-grid');
+    CANVAS_PATTERNS.forEach(pat => {
+      const btn = document.createElement('button');
+      btn.className = `pattern-btn p-3 rounded-2xl border text-left flex items-start gap-2.5 transition-all bg-slate-800/40 border-white/10 hover:bg-slate-800`;
+      btn.innerHTML = `
+        <span class="text-xl mt-0.5">${pat.icon}</span>
+        <div class="flex-1">
+          <div class="text-xs font-bold text-white">${pat.name}</div>
+          <div class="text-[10px] text-slate-400">${pat.description}</div>
+        </div>
+      `;
+      btn.addEventListener('click', () => {
+        setBoardPattern(pat.id);
+      });
+      boardPatternsGrid.appendChild(btn);
+    });
+
+    document.getElementById('custom-bg-picker').addEventListener('input', (e) => {
+      const hex = e.target.value;
+      document.getElementById('label-custom-bg').textContent = hex;
+      setBoardBackground(hex, '');
+    });
+
+    function setBoardBackground(hex, bgClass) {
+      customBgColor = hex;
+      const curPage = pages[activePageIndex];
+      curPage.customBgColor = hex;
+      if (bgClass) {
+        const curPattern = CANVAS_PATTERNS.find(p => p.id && curPage.theme.includes(p.id))?.id || '';
+        curPage.theme = curPattern ? `${bgClass} ${curPattern}` : bgClass;
+      }
+      updatePageUI();
+    }
+
+    function setBoardPattern(patternId) {
+      const curPage = pages[activePageIndex];
+      const baseClass = BOARD_COLORS.find(c => curPage.theme.includes(c.bgClass))?.bgClass || 'chalkboard-bg';
+      curPage.theme = patternId ? `${baseClass} ${patternId}` : baseClass;
+      updatePageUI();
+    }
+
+    function resizeCanvases() {
+      const width = container.clientWidth;
+      const height = container.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
+
+      [mainCanvas, overlayCanvas, laserCanvas].forEach(c => {
+        c.width = width * dpr;
+        c.height = height * dpr;
+        c.style.width = width + 'px';
+        c.style.height = height + 'px';
+        const ctx = c.getContext('2d');
+        ctx.scale(dpr, dpr);
+      });
+      redrawMainCanvas();
+    }
+
+    window.addEventListener('resize', resizeCanvases);
+    setTimeout(resizeCanvases, 50);
+
+    function renderStroke(ctx, stroke) {
+      const { points, color, width, tool, opacity, dash } = stroke;
+      if (!points || points.length === 0) return;
+
+      ctx.save();
+
+      // Dash support
+      if (dash === 'dashed') {
+        ctx.setLineDash([12, 8]);
+      } else if (dash === 'dotted') {
+        ctx.setLineDash([4, 6]);
+      } else {
+        ctx.setLineDash([]);
+      }
+
+      const isHighlighter = tool === 'highlighter';
+      const isChalk = tool === 'chalk';
+      const isCalligraphy = tool === 'calligraphy';
+
+      if (isHighlighter) {
+        ctx.globalAlpha = opacity !== undefined ? opacity : 0.35;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width * 2.5;
+        ctx.lineCap = 'square';
+        ctx.lineJoin = 'miter';
+      } else {
+        ctx.globalAlpha = opacity !== undefined ? opacity : 1.0;
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
+      }
+
+      if (points.length === 1) {
+        ctx.beginPath();
+        ctx.arc(points[0].x, points[0].y, (width / 2) || 2, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.restore();
+        return;
+      }
+
+      if (isCalligraphy) {
+        for (let i = 0; i < points.length - 1; i++) {
+          const p1 = points[i];
+          const p2 = points[i + 1];
+          const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+          const dt = Math.max(1, (p2.time || 0) - (p1.time || 0));
+          const speed = Math.min(dist / dt, 3.0);
+          const dynamicWidth = Math.max(1.5, width * (1.2 - speed * 0.3));
+
+          ctx.beginPath();
+          ctx.lineWidth = dynamicWidth;
+          ctx.moveTo(p1.x, p1.y);
+          ctx.lineTo(p2.x, p2.y);
+          ctx.stroke();
+        }
+      } else {
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+
+        if (points.length === 2) {
+          ctx.lineTo(points[1].x, points[1].y);
+        } else {
+          for (let i = 1; i < points.length - 1; i++) {
+            const p1 = points[i];
+            const p2 = points[i + 1];
+            const midX = (p1.x + p2.x) / 2;
+            const midY = (p1.y + p2.y) / 2;
+            ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
+          }
+          const last = points[points.length - 1];
+          ctx.lineTo(last.x, last.y);
+        }
+
+        ctx.stroke();
+
+        if (isChalk) {
+          ctx.globalAlpha = (opacity || 1.0) * 0.2;
+          ctx.lineWidth = width + 2;
+          ctx.stroke();
+        }
+      }
+
+      ctx.restore();
+    }
+
+    function drawShape(ctx, shape) {
+      const { type, start, end, color, width } = shape;
+      if (!start || !end) return;
+
+      ctx.save();
+      ctx.strokeStyle = color || '#ffffff';
+      ctx.lineWidth = width || 4;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+
+      const dx = end.x - start.x;
+      const dy = end.y - start.y;
+      const minX = Math.min(start.x, end.x);
+      const minY = Math.min(start.y, end.y);
+      const w = Math.abs(dx);
+      const h = Math.abs(dy);
+
+      ctx.beginPath();
+      if (type === 'line') {
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+      } else if (type === 'arrow') {
+        ctx.moveTo(start.x, start.y);
+        ctx.lineTo(end.x, end.y);
+        ctx.stroke();
+        const angle = Math.atan2(dy, dx);
+        const headLen = Math.max(14, width * 3);
+        ctx.beginPath();
+        ctx.moveTo(end.x, end.y);
+        ctx.lineTo(end.x - headLen * Math.cos(angle - Math.PI / 6), end.y - headLen * Math.sin(angle - Math.PI / 6));
+        ctx.lineTo(end.x - headLen * Math.cos(angle + Math.PI / 6), end.y - headLen * Math.sin(angle + Math.PI / 6));
+        ctx.closePath();
+        ctx.fillStyle = color;
+        ctx.fill();
+        ctx.restore();
+        return;
+      } else if (type === 'rectangle') {
+        ctx.rect(minX, minY, w, h);
+      } else if (type === 'circle') {
+        ctx.ellipse(minX + w / 2, minY + h / 2, Math.max(1, w / 2), Math.max(1, h / 2), 0, 0, Math.PI * 2);
+      } else if (type === 'triangle') {
+        ctx.moveTo(minX + w / 2, minY);
+        ctx.lineTo(minX + w, minY + h);
+        ctx.lineTo(minX, minY + h);
+        ctx.closePath();
+      } else if (type === 'cube') {
+        const offset = Math.min(w * 0.35, h * 0.35, 45);
+        ctx.rect(minX, minY + offset, w - offset, h - offset);
+        ctx.rect(minX + offset, minY, w - offset, h - offset);
+        ctx.moveTo(minX, minY + offset); ctx.lineTo(minX + offset, minY);
+        ctx.moveTo(minX + w - offset, minY + offset); ctx.lineTo(minX + w, minY);
+        ctx.moveTo(minX, minY + h); ctx.lineTo(minX + offset, minY + h);
+        ctx.moveTo(minX + w - offset, minY + h); ctx.lineTo(minX + w, minY + h);
+      } else if (type === 'coordinate-axes') {
+        const midX = minX + w / 2;
+        const midY = minY + h / 2;
+        ctx.moveTo(minX, midY); ctx.lineTo(minX + w, midY);
+        ctx.moveTo(midX, minY + h); ctx.lineTo(midX, minY);
+      }
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function redrawMainCanvas() {
+      const page = pages[activePageIndex];
+      const dpr = window.devicePixelRatio || 1;
+      const width = mainCanvas.width / dpr;
+      const height = mainCanvas.height / dpr;
+
+      mainCtx.clearRect(0, 0, width, height);
+
+      // Draw PDF Background if present
+      if (page.pdfBg) {
+        mainCtx.drawImage(page.pdfBg, 0, 0, width, height);
+      }
+
+      if (page.stemObjects) {
+        page.stemObjects.forEach(obj => {
+          if (obj.img) {
+            mainCtx.drawImage(obj.img, obj.x, obj.y, obj.width, obj.height);
+          }
+        });
+      }
+
+      if (page.shapes) {
+        page.shapes.forEach(shape => drawShape(mainCtx, shape));
+      }
+
+      if (page.strokes) {
+        page.strokes.forEach(stroke => renderStroke(mainCtx, stroke));
+      }
+    }
+
+    function commitHistory() {
+      const page = pages[activePageIndex];
+      const snapshot = {
+        strokes: JSON.parse(JSON.stringify(page.strokes || [])),
+        shapes: JSON.parse(JSON.stringify(page.shapes || [])),
+        stemObjects: [...(page.stemObjects || [])]
+      };
+      historyStack = historyStack.slice(0, historyStep + 1);
+      historyStack.push(snapshot);
+      historyStep++;
+    }
+
+    function doUndo() {
+      if (historyStep > 0) {
+        historyStep--;
+        const snap = historyStack[historyStep];
+        if (snap) {
+          pages[activePageIndex].strokes = JSON.parse(JSON.stringify(snap.strokes));
+          pages[activePageIndex].shapes = JSON.parse(JSON.stringify(snap.shapes));
+          redrawMainCanvas();
+        }
+      }
+    }
+
+    function doRedo() {
+      if (historyStep < historyStack.length - 1) {
+        historyStep++;
+        const snap = historyStack[historyStep];
+        if (snap) {
+          pages[activePageIndex].strokes = JSON.parse(JSON.stringify(snap.strokes));
+          pages[activePageIndex].shapes = JSON.parse(JSON.stringify(snap.shapes));
+          redrawMainCanvas();
+        }
+      }
+    }
+
+    document.getElementById('btn-undo').addEventListener('click', doUndo);
+    document.getElementById('btn-redo').addEventListener('click', doRedo);
+
+    function addLaserPoint(x, y) {
+      laserParticles.push({ x, y, birth: performance.now(), life: 600 });
+    }
+
+    function animateLaser() {
+      const dpr = window.devicePixelRatio || 1;
+      const width = laserCanvas.width / dpr;
+      const height = laserCanvas.height / dpr;
+      laserCtx.clearRect(0, 0, width, height);
+
+      const now = performance.now();
+      laserParticles = laserParticles.filter(p => now - p.birth < p.life);
+
+      if (laserParticles.length > 0) {
+        laserCtx.save();
+        for (let i = 0; i < laserParticles.length; i++) {
+          const p = laserParticles[i];
+          const progress = 1 - (now - p.birth) / p.life;
+          laserCtx.beginPath();
+          laserCtx.arc(p.x, p.y, Math.max(2, 6 * progress), 0, Math.PI * 2);
+          laserCtx.fillStyle = `rgba(255, 45, 85, ${progress * 0.9})`;
+          laserCtx.shadowColor = '#ff1744';
+          laserCtx.shadowBlur = 10 * progress;
+          laserCtx.fill();
+        }
+        laserCtx.restore();
+      }
+      requestAnimationFrame(animateLaser);
+    }
+    requestAnimationFrame(animateLaser);
+
+    function eraseAtPoint(x, y) {
+      const page = pages[activePageIndex];
+      const radius = Math.max(20, strokeWidth * 3);
+      const oldLen = page.strokes.length + page.shapes.length;
+
+      page.strokes = page.strokes.filter(s => {
+        return !s.points.some(p => Math.hypot(p.x - x, p.y - y) <= radius);
+      });
+
+      page.shapes = page.shapes.filter(s => {
+        const minX = Math.min(s.start.x, s.end.x) - radius;
+        const maxX = Math.max(s.start.x, s.end.x) + radius;
+        const minY = Math.min(s.start.y, s.end.y) - radius;
+        const maxY = Math.max(s.start.y, s.end.y) + radius;
+        return !(x >= minX && x <= maxX && y >= minY && y <= maxY);
+      });
+
+      if (page.strokes.length + page.shapes.length !== oldLen) {
+        redrawMainCanvas();
+        commitHistory();
+      }
+    }
+
+    function getCoords(e) {
+      const rect = container.getBoundingClientRect();
+      return { 
+        x: e.clientX - rect.left, 
+        y: e.clientY - rect.top,
+        time: performance.now()
+      };
+    }
+
+    interactionLayer.addEventListener('pointerdown', (e) => {
+      isDrawing = true;
+      const coords = getCoords(e);
+
+      if (activeTool === 'laser' || activeBrushProfile === 'laser') {
+        addLaserPoint(coords.x, coords.y);
+        return;
+      }
+      if (activeTool === 'eraser') {
+        eraseAtPoint(coords.x, coords.y);
+        return;
+      }
+      if (activeTool === 'shape') {
+        shapeStart = { x: coords.x, y: coords.y };
+        return;
+      }
+      if (activeTool === 'pen' || activeTool === 'highlighter') {
+        currentPoints = [coords];
+        renderStroke(overlayCtx, { 
+          points: currentPoints, 
+          color: strokeColor, 
+          width: strokeWidth, 
+          tool: activeTool === 'highlighter' ? 'highlighter' : activeBrushProfile,
+          opacity: strokeOpacity,
+          dash: brushDash
+        });
+      }
+    });
+
+    interactionLayer.addEventListener('pointermove', (e) => {
+      if (!isDrawing) return;
+      const coords = getCoords(e);
+
+      if (activeTool === 'laser' || activeBrushProfile === 'laser') {
+        addLaserPoint(coords.x, coords.y);
+        return;
+      }
+      if (activeTool === 'eraser') {
+        eraseAtPoint(coords.x, coords.y);
+        return;
+      }
+      if (activeTool === 'shape' && shapeStart) {
+        const dpr = window.devicePixelRatio || 1;
+        overlayCtx.clearRect(0, 0, overlayCanvas.width / dpr, overlayCanvas.height / dpr);
+        drawShape(overlayCtx, { type: activeShape, start: shapeStart, end: coords, color: strokeColor, width: strokeWidth });
+        return;
+      }
+      if (activeTool === 'pen' || activeTool === 'highlighter') {
+        currentPoints.push(coords);
+        const dpr = window.devicePixelRatio || 1;
+        overlayCtx.clearRect(0, 0, overlayCanvas.width / dpr, overlayCanvas.height / dpr);
+        renderStroke(overlayCtx, { 
+          points: currentPoints, 
+          color: strokeColor, 
+          width: strokeWidth, 
+          tool: activeTool === 'highlighter' ? 'highlighter' : activeBrushProfile,
+          opacity: strokeOpacity,
+          dash: brushDash
+        });
+      }
+    });
+
+    interactionLayer.addEventListener('pointerup', (e) => {
+      if (!isDrawing) return;
+      isDrawing = false;
+      const coords = getCoords(e);
+      const dpr = window.devicePixelRatio || 1;
+      overlayCtx.clearRect(0, 0, overlayCanvas.width / dpr, overlayCanvas.height / dpr);
+
+      const page = pages[activePageIndex];
+
+      if (activeTool === 'shape' && shapeStart) {
+        page.shapes.push({
+          type: activeShape,
+          start: shapeStart,
+          end: coords,
+          color: strokeColor,
+          width: strokeWidth
+        });
+        redrawMainCanvas();
+        commitHistory();
+        shapeStart = null;
+      } else if ((activeTool === 'pen' || activeTool === 'highlighter') && currentPoints.length > 0) {
+        // Smart Shape Auto-Conversion Check
+        if (activeBrushProfile === 'smart-shape' && currentPoints.length > 10) {
+          const start = currentPoints[0];
+          const end = currentPoints[currentPoints.length - 1];
+          const dist = Math.hypot(end.x - start.x, end.y - start.y);
+          if (dist < 45) {
+            let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+            currentPoints.forEach(p => {
+              minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x);
+              minY = Math.min(minY, p.y); maxY = Math.max(maxY, p.y);
+            });
+            page.shapes.push({
+              type: 'circle',
+              start: { x: minX, y: minY },
+              end: { x: maxX, y: maxY },
+              color: strokeColor,
+              width: strokeWidth
+            });
+            redrawMainCanvas();
+            commitHistory();
+            currentPoints = [];
+            return;
+          }
+        }
+
+        page.strokes.push({
+          points: [...currentPoints],
+          color: strokeColor,
+          width: strokeWidth,
+          tool: activeTool === 'highlighter' ? 'highlighter' : activeBrushProfile,
+          opacity: strokeOpacity,
+          dash: brushDash
+        });
+        redrawMainCanvas();
+        commitHistory();
+        currentPoints = [];
+      }
+    });
+
+    const toolButtons = {
+      pen: document.getElementById('tool-pen'),
+      highlighter: document.getElementById('tool-highlighter'),
+      laser: document.getElementById('tool-laser'),
+      eraser: document.getElementById('tool-eraser'),
+    };
+
+    function setActiveTool(tool) {
+      activeTool = tool;
+      Object.keys(toolButtons).forEach(t => {
+        if (t === tool) {
+          toolButtons[t].className = "tool-btn touch-btn p-3 rounded-xl flex items-center justify-center bg-sky-500 text-white shadow-lg shadow-sky-500/30";
+        } else {
+          toolButtons[t].className = "tool-btn touch-btn p-3 rounded-xl flex items-center justify-center text-slate-300 hover:text-white hover:bg-white/10";
+        }
+      });
+      document.getElementById('shapes-popup').classList.add('hidden');
+      document.getElementById('color-popup').classList.add('hidden');
+    }
+
+    toolButtons.pen.addEventListener('click', () => setActiveTool('pen'));
+    toolButtons.highlighter.addEventListener('click', () => setActiveTool('highlighter'));
+    toolButtons.laser.addEventListener('click', () => setActiveTool('laser'));
+    toolButtons.eraser.addEventListener('click', () => setActiveTool('eraser'));
+
+    // Pen Styles Modal Interactions
+    const penStylesModal = document.getElementById('pen-styles-modal');
+    document.getElementById('btn-open-pen-styles').addEventListener('click', () => {
+      penStylesModal.classList.remove('hidden');
+      document.getElementById('color-popup').classList.add('hidden');
+    });
+    document.getElementById('btn-open-pen-styles-link').addEventListener('click', () => {
+      penStylesModal.classList.remove('hidden');
+      document.getElementById('color-popup').classList.add('hidden');
+    });
+    document.getElementById('btn-close-pen-styles').addEventListener('click', () => {
+      penStylesModal.classList.add('hidden');
+    });
+    document.getElementById('btn-apply-pen-styles').addEventListener('click', () => {
+      penStylesModal.classList.add('hidden');
+    });
+
+    // Profile buttons
+    document.querySelectorAll('.profile-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeBrushProfile = btn.getAttribute('data-profile');
+        if (activeBrushProfile === 'highlighter') {
+          setActiveTool('highlighter');
+        } else {
+          setActiveTool('pen');
+        }
+        document.querySelectorAll('.profile-btn').forEach(b => {
+          if (b === btn) {
+            b.className = "profile-btn p-3 rounded-2xl border text-left flex items-start gap-2.5 bg-sky-500/20 border-sky-400 ring-2 ring-sky-400/30";
+          } else {
+            b.className = "profile-btn p-3 rounded-2xl border text-left flex items-start gap-2.5 bg-slate-800/40 border-white/10 hover:bg-slate-800";
+          }
+        });
+      });
+    });
+
+    // Dash pattern buttons
+    document.querySelectorAll('.dash-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        brushDash = btn.getAttribute('data-dash');
+        document.querySelectorAll('.dash-btn').forEach(b => {
+          if (b === btn) {
+            b.className = "dash-btn py-2.5 rounded-xl text-xs font-bold bg-sky-600 text-white border border-sky-400 shadow-md";
+          } else {
+            b.className = "dash-btn py-2.5 rounded-xl text-xs font-semibold bg-slate-800/60 text-slate-300 border border-white/10 hover:text-white";
+          }
+        });
+      });
+    });
+
+    // Sliders
+    const sliderOpacity = document.getElementById('slider-opacity');
+    const labelOpacity = document.getElementById('label-opacity');
+    sliderOpacity.addEventListener('input', (e) => {
+      strokeOpacity = parseFloat(e.target.value);
+      labelOpacity.textContent = `${Math.round(strokeOpacity * 100)}%`;
+    });
+
+    const sliderThickness = document.getElementById('slider-thickness');
+    const labelThickness = document.getElementById('label-thickness');
+    sliderThickness.addEventListener('input', (e) => {
+      strokeWidth = parseInt(e.target.value, 10);
+      labelThickness.textContent = `${strokeWidth}px`;
+    });
+
+    document.getElementById('btn-palette').addEventListener('click', () => {
+      document.getElementById('color-popup').classList.toggle('hidden');
+      document.getElementById('shapes-popup').classList.add('hidden');
+    });
+
+    document.querySelectorAll('.width-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        strokeWidth = Number(btn.getAttribute('data-width'));
+        sliderThickness.value = strokeWidth;
+        labelThickness.textContent = `${strokeWidth}px`;
+        document.querySelectorAll('.width-btn').forEach(b => {
+          b.className = `width-btn px-2 py-1 rounded-lg text-xs font-medium flex items-center gap-1 ${b === btn ? 'bg-white/20 text-white font-bold border border-white/30' : 'text-slate-400 hover:text-white hover:bg-white/5'}`;
+        });
+      });
+    });
+
+    document.getElementById('btn-shapes').addEventListener('click', () => {
+      document.getElementById('shapes-popup').classList.toggle('hidden');
+      document.getElementById('color-popup').classList.add('hidden');
+    });
+
+    document.querySelectorAll('.shape-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        activeShape = btn.getAttribute('data-shape');
+        activeTool = 'shape';
+        document.getElementById('shapes-popup').classList.add('hidden');
+      });
+    });
+
+    document.getElementById('btn-clear-board').addEventListener('click', () => {
+      if (confirm('Clear drawings on this board?')) {
+        pages[activePageIndex].strokes = [];
+        pages[activePageIndex].shapes = [];
+        pages[activePageIndex].stemObjects = [];
+        redrawMainCanvas();
+        commitHistory();
+      }
+    });
+
+    // Templates & Themes Modal
+    document.getElementById('btn-open-templates').addEventListener('click', () => {
+      document.getElementById('templates-modal').classList.remove('hidden');
+    });
+    document.getElementById('btn-close-templates').addEventListener('click', () => {
+      document.getElementById('templates-modal').classList.add('hidden');
+    });
+    document.getElementById('btn-apply-templates').addEventListener('click', () => {
+      document.getElementById('templates-modal').classList.add('hidden');
+    });
+
+    const tabBtnBg = document.getElementById('tab-btn-bg');
+    const tabBtnPdf = document.getElementById('tab-btn-pdf');
+    const tabViewBg = document.getElementById('tab-view-bg');
+    const tabViewPdf = document.getElementById('tab-view-pdf');
+
+    tabBtnBg.addEventListener('click', () => {
+      tabBtnBg.className = "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-emerald-500 text-white shadow-lg shadow-emerald-500/25";
+      tabBtnPdf.className = "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-white/5";
+      tabViewBg.classList.remove('hidden');
+      tabViewPdf.classList.add('hidden');
+    });
+
+    tabBtnPdf.addEventListener('click', () => {
+      tabBtnPdf.className = "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-sky-500 text-white shadow-lg shadow-sky-500/25";
+      tabBtnBg.className = "flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-slate-400 hover:text-white hover:bg-white/5";
+      tabViewPdf.classList.remove('hidden');
+      tabViewBg.classList.add('hidden');
+    });
+
+    // PDF Ingestion
+    document.getElementById('pdf-file-input').addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if (!file || !window.pdfjsLib) return;
+
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+      for (let i = 1; i <= pdf.numPages; i++) {
+        const page = await pdf.getPage(i);
+        const viewport = page.getViewport({ scale: 2.0 });
+        const canvas = document.createElement('canvas');
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        const ctx = canvas.getContext('2d');
+        await page.render({ canvasContext: ctx, viewport }).promise;
+
+        const img = new Image();
+        img.src = canvas.toDataURL('image/jpeg');
+
+        pages.push({
+          id: `pdf-page-${Date.now()}-${i}`,
+          theme: 'bg-white',
+          customBgColor: '#ffffff',
+          pdfBg: img,
+          strokes: [],
+          shapes: [],
+          stemObjects: [],
+          stickyNotes: []
+        });
+      }
+
+      activePageIndex = pages.length - pdf.numPages;
+      updatePageUI();
+      document.getElementById('templates-modal').classList.add('hidden');
+    });
+
+    // AI Formulas Modal
+    document.getElementById('btn-open-formulas').addEventListener('click', () => {
+      document.getElementById('formulas-modal').classList.remove('hidden');
+    });
+    document.getElementById('btn-close-formulas').addEventListener('click', () => {
+      document.getElementById('formulas-modal').classList.add('hidden');
+    });
+
+    document.querySelectorAll('.btn-insert-form').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const latex = btn.getAttribute('data-latex');
+        const name = btn.getAttribute('data-name');
+        
+        const card = document.createElement('div');
+        card.className = "pointer-events-auto absolute z-20 p-3 rounded-2xl bg-slate-900/90 border border-purple-400/50 shadow-2xl backdrop-blur-md cursor-grab active:cursor-grabbing select-none flex flex-col gap-1";
+        card.style.left = `${window.innerWidth / 2 - 120}px`;
+        card.style.top = `${window.innerHeight / 2 - 40}px`;
+        card.innerHTML = `
+          <div class="flex items-center justify-between gap-3 pb-1 border-b border-white/10">
+            <span class="text-[10px] font-bold text-purple-300">${name}</span>
+            <button class="p-0.5 text-slate-400 hover:text-white rounded"><i data-lucide="x" class="w-3 h-3 text-red-400"></i></button>
+          </div>
+          <div class="text-sm font-mono font-bold text-amber-300">${latex}</div>
+        `;
+        card.querySelector('button').addEventListener('click', () => card.remove());
+
+        let isDraggingCard = false;
+        let cardStart = { x: 0, y: 0, left: 0, top: 0 };
+        card.addEventListener('pointerdown', (ev) => {
+          if (ev.target.tagName === 'BUTTON') return;
+          isDraggingCard = true;
+          cardStart = { x: ev.clientX, y: ev.clientY, left: parseInt(card.style.left), top: parseInt(card.style.top) };
+        });
+        window.addEventListener('pointermove', (ev) => {
+          if (isDraggingCard) {
+            card.style.left = `${cardStart.left + (ev.clientX - cardStart.x)}px`;
+            card.style.top = `${cardStart.top + (ev.clientY - cardStart.y)}px`;
+          }
+        });
+        window.addEventListener('pointerup', () => { isDraggingCard = false; });
+
+        stickyContainer.appendChild(card);
+        lucide.createIcons();
+        document.getElementById('formulas-modal').classList.add('hidden');
+      });
+    });
+
+    function updatePageUI() {
+      document.getElementById('page-indicator').textContent = `Page ${activePageIndex + 1} / ${pages.length}`;
+      const cur = pages[activePageIndex];
+      container.className = `relative w-full h-full overflow-hidden select-none ${cur.theme || 'chalkboard-bg'}`;
+      if (cur.customBgColor) {
+        container.style.backgroundColor = cur.customBgColor;
+      } else {
+        container.style.backgroundColor = '';
+      }
+      redrawMainCanvas();
+    }
+
+    document.getElementById('btn-add-page').addEventListener('click', () => {
+      const cur = pages[activePageIndex];
+      pages.push({ 
+        id: `page-${Date.now()}`, 
+        theme: cur.theme || 'chalkboard-bg', 
+        customBgColor: cur.customBgColor || '',
+        pdfBg: null, 
+        strokes: [], 
+        shapes: [], 
+        stemObjects: [], 
+        stickyNotes: [] 
+      });
+      activePageIndex = pages.length - 1;
+      updatePageUI();
+    });
+
+    document.getElementById('btn-prev-page').addEventListener('click', () => {
+      if (activePageIndex > 0) {
+        activePageIndex--;
+        updatePageUI();
+      }
+    });
+
+    document.getElementById('btn-next-page').addEventListener('click', () => {
+      if (activePageIndex < pages.length - 1) {
+        activePageIndex++;
+        updatePageUI();
+      }
+    });
+
+    document.getElementById('btn-fullscreen').addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen();
+      }
+    });
+
+    // Ruler & Protractor
+    const ruler = document.getElementById('virtual-ruler');
+    const protractor = document.getElementById('virtual-protractor');
+
+    const cmTicks = document.getElementById('ruler-cm-ticks');
+    for (let i = 0; i <= 25; i++) {
+      const d = document.createElement('div');
+      d.style.left = `${(i / 25) * 100}%`;
+      d.className = 'absolute top-0 flex flex-col items-center -translate-x-1/2';
+      d.innerHTML = `<div class="w-[1.5px] ${i % 5 === 0 ? 'h-4 bg-sky-300' : 'h-2 bg-sky-400/50'}"></div>${i % 5 === 0 ? `<span class="text-[10px] font-mono text-sky-200">${i}</span>` : ''}`;
+      cmTicks.appendChild(d);
+    }
+
+    const protoSvg = document.getElementById('protractor-svg');
+    for (let i = 0; i < 36; i++) {
+      const deg = i * 10;
+      const rad = (deg * Math.PI) / 180;
+      const r = 180;
+      const x1 = r + (r - (deg % 30 === 0 ? 16 : 8)) * Math.cos(rad);
+      const y1 = r + (r - (deg % 30 === 0 ? 16 : 8)) * Math.sin(rad);
+      const x2 = r + (r - 2) * Math.cos(rad);
+      const y2 = r + (r - 2) * Math.sin(rad);
+      const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+      line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+      line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+      line.setAttribute('stroke', deg % 90 === 0 ? '#34d399' : '#10b981');
+      protoSvg.appendChild(line);
+    }
+
+    document.getElementById('btn-launch-ruler').addEventListener('click', () => {
+      ruler.classList.remove('hidden');
+      document.getElementById('stem-modal').classList.add('hidden');
+    });
+    document.getElementById('ruler-close-btn').addEventListener('click', () => ruler.classList.add('hidden'));
+
+    document.getElementById('btn-launch-protractor').addEventListener('click', () => {
+      protractor.classList.remove('hidden');
+      document.getElementById('stem-modal').classList.add('hidden');
+    });
+    document.getElementById('protractor-close-btn').addEventListener('click', () => protractor.classList.add('hidden'));
+
+    let isRulerDragging = false;
+    let rulerStart = { x: 0, y: 0, left: 250, top: 220 };
+    document.getElementById('ruler-drag-handle').addEventListener('pointerdown', (e) => {
+      isRulerDragging = true;
+      rulerStart = { x: e.clientX, y: e.clientY, left: parseInt(ruler.style.left || 250), top: parseInt(ruler.style.top || 220) };
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (isRulerDragging) {
+        ruler.style.left = `${rulerStart.left + (e.clientX - rulerStart.x)}px`;
+        ruler.style.top = `${rulerStart.top + (e.clientY - rulerStart.y)}px`;
+      }
+    });
+    window.addEventListener('pointerup', () => { isRulerDragging = false; });
+
+    // Classroom Timer
+    const timerWidget = document.getElementById('classroom-timer');
+    const timerDisplay = document.getElementById('timer-display');
+    const startTimerBtn = document.getElementById('btn-start-timer');
+    let timerSeconds = 300;
+    let isTimerRunning = false;
+    let timerInterval = null;
+
+    document.getElementById('btn-toggle-timer-widget').addEventListener('click', () => {
+      timerWidget.classList.toggle('hidden');
+    });
+    document.getElementById('btn-close-timer').addEventListener('click', () => {
+      timerWidget.classList.add('hidden');
+    });
+
+    function formatTimerDisplay(secs) {
+      const m = Math.floor(secs / 60).toString().padStart(2, '0');
+      const s = (secs % 60).toString().padStart(2, '0');
+      return `${m}:${s}`;
+    }
+
+    startTimerBtn.addEventListener('click', () => {
+      isTimerRunning = !isTimerRunning;
+      if (isTimerRunning) {
+        startTimerBtn.innerHTML = `<i data-lucide="pause" class="w-3.5 h-3.5"></i><span>Pause</span>`;
+        startTimerBtn.className = "flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-amber-600 hover:bg-amber-500 text-white shadow-md";
+        timerInterval = setInterval(() => {
+          if (timerSeconds > 0) {
+            timerSeconds--;
+            timerDisplay.textContent = formatTimerDisplay(timerSeconds);
+          } else {
+            clearInterval(timerInterval);
+            isTimerRunning = false;
+            startTimerBtn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5"></i><span>Start</span>`;
+            startTimerBtn.className = "flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white shadow-md";
+          }
+        }, 1000);
+      } else {
+        clearInterval(timerInterval);
+        startTimerBtn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5"></i><span>Start</span>`;
+        startTimerBtn.className = "flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white shadow-md";
+      }
+      lucide.createIcons();
+    });
+
+    document.getElementById('btn-reset-timer').addEventListener('click', () => {
+      clearInterval(timerInterval);
+      isTimerRunning = false;
+      timerSeconds = 300;
+      timerDisplay.textContent = '05:00';
+      startTimerBtn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5"></i><span>Start</span>`;
+      startTimerBtn.className = "flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white shadow-md";
+      lucide.createIcons();
+    });
+
+    document.querySelectorAll('.timer-preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        clearInterval(timerInterval);
+        isTimerRunning = false;
+        timerSeconds = Number(btn.getAttribute('data-mins')) * 60;
+        timerDisplay.textContent = formatTimerDisplay(timerSeconds);
+        startTimerBtn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5"></i><span>Start</span>`;
+        startTimerBtn.className = "flex-1 py-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 text-white shadow-md";
+        lucide.createIcons();
+      });
+    });
+
+    // Sticky Note Creation
+    document.getElementById('btn-add-note').addEventListener('click', () => {
+      const note = document.createElement('div');
+      note.className = "pointer-events-auto absolute z-20 w-52 min-h-[130px] rounded-2xl shadow-xl p-3 flex flex-col justify-between border-2 bg-amber-200 text-slate-900 border-amber-300 cursor-grab active:cursor-grabbing select-none";
+      note.style.left = `${window.innerWidth / 2 - 100}px`;
+      note.style.top = `${window.innerHeight / 2 - 70}px`;
+      note.innerHTML = `
+        <div class="flex items-center justify-between pb-1">
+          <span class="text-[10px] font-bold uppercase tracking-wider opacity-70">Memo Note</span>
+          <button class="p-1 rounded-full hover:bg-black/10 text-slate-700"><i data-lucide="x" class="w-3 h-3"></i></button>
+        </div>
+        <textarea class="w-full h-20 bg-transparent outline-none resize-none font-medium text-xs leading-relaxed" placeholder="Type lecture note..."></textarea>
+      `;
+      note.querySelector('button').addEventListener('click', () => note.remove());
+
+      let isDraggingNote = false;
+      let noteStart = { x: 0, y: 0, left: 0, top: 0 };
+      note.addEventListener('pointerdown', (e) => {
+        if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') return;
+        isDraggingNote = true;
+        noteStart = { x: e.clientX, y: e.clientY, left: parseInt(note.style.left), top: parseInt(note.style.top) };
+      });
+      window.addEventListener('pointermove', (e) => {
+        if (isDraggingNote) {
+          note.style.left = `${noteStart.left + (e.clientX - noteStart.x)}px`;
+          note.style.top = `${noteStart.top + (e.clientY - noteStart.y)}px`;
+        }
+      });
+      window.addEventListener('pointerup', () => { isDraggingNote = false; });
+
+      stickyContainer.appendChild(note);
+      lucide.createIcons();
+    });
+
+    // STEM Drawer Tabs
+    document.getElementById('btn-open-stem').addEventListener('click', () => {
+      document.getElementById('stem-modal').classList.remove('hidden');
+    });
+    document.getElementById('btn-close-stem').addEventListener('click', () => {
+      document.getElementById('stem-modal').classList.add('hidden');
+    });
+
+    const stemTabs = document.querySelectorAll('.stem-tab-btn');
+    stemTabs.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tab = btn.getAttribute('data-tab');
+        stemTabs.forEach(b => b.className = `stem-tab-btn flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold ${b === btn ? 'bg-sky-500 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-white/5'}`);
+        document.getElementById('tab-content-math').className = tab === 'math' ? 'space-y-6' : 'hidden';
+        document.getElementById('tab-content-chem').className = tab === 'chem' ? 'space-y-6' : 'hidden';
+        document.getElementById('tab-content-phys').className = tab === 'phys' ? 'space-y-6' : 'hidden';
+      });
+    });
+
+    const chemGrid = document.getElementById('chem-apparatus-grid');
+    const physGrid = document.getElementById('phys-apparatus-grid');
+
+    const chemApparatus = [
+      { name: 'Beaker (250ml)', svg: `<svg viewBox="0 0 100 120" width="80" height="95"><rect x="15" y="45" width="70" height="65" rx="4" fill="#06b6d4" opacity="0.8"/><path d="M 10 15 L 15 15 L 15 110 Q 15 115 20 115 L 80 115 Q 85 115 85 110 L 85 15 L 90 15" fill="none" stroke="#fff" stroke-width="3"/></svg>` },
+      { name: 'Erlenmeyer Flask', svg: `<svg viewBox="0 0 100 120" width="80" height="95"><polygon points="40,20 60,20 85,110 15,110" fill="#a855f7" opacity="0.8"/><polygon points="40,20 60,20 85,110 15,110" fill="none" stroke="#fff" stroke-width="3"/></svg>` },
+      { name: 'Florence Flask', svg: `<svg viewBox="0 0 100 120" width="80" height="95"><circle cx="50" cy="75" r="35" fill="#10b981" opacity="0.8"/><circle cx="50" cy="75" r="35" fill="none" stroke="#fff" stroke-width="3"/><rect x="42" y="10" width="16" height="35" fill="none" stroke="#fff" stroke-width="3"/></svg>` },
+      { name: 'Benzene Ring (C₆H₆)', svg: `<svg viewBox="0 0 100 120" width="80" height="95"><polygon points="50,15 85,35 85,85 50,105 15,85 15,35" fill="none" stroke="#38bdf8" stroke-width="3"/><circle cx="50" cy="60" r="22" fill="none" stroke="#38bdf8" stroke-width="2" stroke-dasharray="4,4"/></svg>` },
+    ];
+
+    chemApparatus.forEach(item => {
+      const card = document.createElement('div');
+      card.className = "p-3 rounded-xl bg-slate-800/50 hover:bg-slate-800 border border-white/10 flex flex-col items-center justify-between";
+      card.innerHTML = `
+        <div class="p-2 mb-1">${item.svg}</div>
+        <span class="text-xs font-medium text-slate-300 mb-2">${item.name}</span>
+        <button class="w-full py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">Place</button>
+      `;
+      card.querySelector('button').addEventListener('click', () => {
+        const svgBlob = new Blob([item.svg], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+        const img = new Image();
+        img.onload = () => {
+          pages[activePageIndex].stemObjects.push({ img, x: container.clientWidth / 2 - 40, y: container.clientHeight / 2 - 50, width: 80, height: 100 });
+          redrawMainCanvas();
+          commitHistory();
+          document.getElementById('stem-modal').classList.add('hidden');
+        };
+        img.src = url;
+      });
+      chemGrid.appendChild(card);
+    });
+
+    const physApparatus = [
+      { name: 'DC Battery Cell', svg: `<svg viewBox="0 0 120 60" width="90" height="45"><line x1="10" y1="30" x2="45" y2="30" stroke="#38bdf8" stroke-width="3"/><line x1="45" y1="10" x2="45" y2="50" stroke="#fff" stroke-width="3"/><line x1="60" y1="20" x2="60" y2="40" stroke="#94a3b8" stroke-width="4"/><line x1="60" y1="30" x2="110" y2="30" stroke="#38bdf8" stroke-width="3"/></svg>` },
+      { name: 'Electric Bulb', svg: `<svg viewBox="0 0 100 80" width="80" height="65"><circle cx="50" cy="40" r="22" fill="rgba(251,191,36,0.2)" stroke="#fbbf24" stroke-width="2.5"/><line x1="36" y1="26" x2="64" y2="54" stroke="#f59e0b" stroke-width="2"/><line x1="36" y1="54" x2="64" y2="26" stroke="#f59e0b" stroke-width="2"/></svg>` },
+      { name: 'Resistor (R)', svg: `<svg viewBox="0 0 120 50" width="90" height="40"><path d="M 10 25 L 30 25 L 37 10 L 51 40 L 65 10 L 79 40 L 93 10 L 100 25 L 110 25" fill="none" stroke="#38bdf8" stroke-width="3"/></svg>` },
+      { name: 'Biconvex Lens', svg: `<svg viewBox="0 0 100 120" width="80" height="95"><line x1="10" y1="60" x2="90" y2="60" stroke="#64748b" stroke-dasharray="3,3"/><path d="M 50 15 Q 75 60 50 105 Q 25 60 50 15 Z" fill="rgba(56,189,248,0.2)" stroke="#38bdf8" stroke-width="2.5"/></svg>` },
+    ];
+
+    physApparatus.forEach(item => {
+      const card = document.createElement('div');
+      card.className = "p-3 rounded-xl bg-slate-800/50 hover:bg-slate-800 border border-white/10 flex flex-col items-center justify-between";
+      card.innerHTML = `
+        <div class="p-2 mb-1">${item.svg}</div>
+        <span class="text-xs font-medium text-slate-300 mb-2">${item.name}</span>
+        <button class="w-full py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold">Place</button>
+      `;
+      card.querySelector('button').addEventListener('click', () => {
+        const svgBlob = new Blob([item.svg], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+        const img = new Image();
+        img.onload = () => {
+          pages[activePageIndex].stemObjects.push({ img, x: container.clientWidth / 2 - 45, y: container.clientHeight / 2 - 35, width: 90, height: 70 });
+          redrawMainCanvas();
+          commitHistory();
+          document.getElementById('stem-modal').classList.add('hidden');
+        };
+        img.src = url;
+      });
+      physGrid.appendChild(card);
+    });
+
+    document.getElementById('btn-open-export').addEventListener('click', () => {
+      document.getElementById('export-modal').classList.remove('hidden');
+    });
+    document.getElementById('btn-close-export').addEventListener('click', () => {
+      document.getElementById('export-modal').classList.add('hidden');
+    });
+
+    document.getElementById('btn-do-export-png').addEventListener('click', () => {
+      const cur = pages[activePageIndex];
+      const exportCanvas = document.createElement('canvas');
+      exportCanvas.width = mainCanvas.width;
+      exportCanvas.height = mainCanvas.height;
+      const expCtx = exportCanvas.getContext('2d');
+      expCtx.fillStyle = cur.customBgColor || '#1e3f20';
+      expCtx.fillRect(0, 0, exportCanvas.width, exportCanvas.height);
+      expCtx.drawImage(mainCanvas, 0, 0);
+
+      const link = document.createElement('a');
+      link.download = `Note5_Page_${activePageIndex + 1}_${Date.now()}.png`;
+      link.href = exportCanvas.toDataURL('image/png');
+      link.click();
+      document.getElementById('export-modal').classList.add('hidden');
+    });
+
+    document.getElementById('btn-do-export-pdf').addEventListener('click', () => {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [1920, 1080] });
+
+      for (let i = 0; i < pages.length; i++) {
+        const p = pages[i];
+        if (i > 0) pdf.addPage([1920, 1080], 'landscape');
+        const exportCanvas = document.createElement('canvas');
+        exportCanvas.width = 1920;
+        exportCanvas.height = 1080;
+        const expCtx = exportCanvas.getContext('2d');
+        expCtx.fillStyle = p.customBgColor || '#1e3f20';
+        expCtx.fillRect(0, 0, 1920, 1080);
+        expCtx.drawImage(mainCanvas, 0, 0, 1920, 1080);
+
+        pdf.addImage(exportCanvas.toDataURL('image/jpeg', 0.95), 'JPEG', 0, 0, 1920, 1080);
+        pdf.setTextColor(220, 220, 220);
+        pdf.setFontSize(16);
+        pdf.text(`Note5 Smart Board • Page ${i + 1} of ${pages.length}`, 40, 1050);
+      }
+
+      pdf.save(`Note5_Lecture_Notes_${Date.now()}.pdf`);
+      document.getElementById('export-modal').classList.add('hidden');
+    });
+
+    // Initialize Lucide icons on load
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+    });
+    lucide.createIcons();
+  </script>
+</body>
+</html>
